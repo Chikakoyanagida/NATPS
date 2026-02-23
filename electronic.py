@@ -1,5 +1,6 @@
 import numpy as np
 from typing import overload, Literal
+from integrator import *
 
 
 def lowdin_orthogonalization(S):
@@ -149,7 +150,7 @@ def hop_search_bisect(model, dt, q_L, q_R, C_L, coeff_L, Sz_L, Sz_R, tol_tau=1e-
     tau_R = dt
     dq = q_R - q_L
     iter = 0
-    print(dq/dt) # In full dynamics replace with nuclear propagation
+    # print(dq/dt) # In full dynamics replace with nuclear propagation
 
     while True:
         tau_M = 0.5 * (tau_L + tau_R)
@@ -178,6 +179,33 @@ def hop_search_bisect(model, dt, q_L, q_R, C_L, coeff_L, Sz_L, Sz_R, tol_tau=1e-
         
     return tau_star, q_star, C_star, coeff_star
 
-# Why is there no quasi-analytical appraoch to pinpoint the hopping? Ask Jeremy.
+# Why is there no quasi-analytical appraoch to pinpoint the hopping? Ask Jeremy. Don't ask Jeremy
 
 # Todo: enforce a global gauge convention to remove gauge dependency.
+
+def hop_search_direct(model, dt, q_L, q_R, v_L, v_R, ):
+    tau_L = 0.0
+    tau_R = dt
+    dq = q_R - q_L
+    iter = 0
+    
+    while True:
+        F_L = model.F()
+        tau_M = 0.5 * (tau_L + tau_R)
+        v_M_half = verlet_v(tau_M, v_L, )
+        q_M = q_L + tau_M * (dq/dt) # In full dynamics replace with nuclear propagation
+        C_M, coeff_M = LD_step(model, q_L, q_M, tau_M, C_L, coeff_L)
+        Sz_M = sz_from_coeff(coeff_M)
+        if Sz_L * Sz_M < 0:
+            tau_R = tau_M
+            Sz_R = Sz_M
+        elif Sz_M * Sz_R < 0:
+            tau_L = tau_M
+            Sz_L = Sz_M
+        
+        if (np.abs(tau_R-tau_L) < tol_tau) or (np.abs(Sz_M) < tol_sz):
+            break
+
+        iter += 1
+        if iter > max_iter:
+            raise RuntimeError('Bisection search did not converge')

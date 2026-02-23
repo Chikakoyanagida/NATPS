@@ -7,8 +7,3 @@ def verlet_X(dt, q_curr, v_half):
 def verlet_v(dt, v_curr, F_curr):
     v_half = v_curr + 0.5 * dt * F_curr
     return v_half
-
-
-
-def surface_hop_MASH(tau):
-    print('PLACEHOLDER: A hop just happened at', tau)
