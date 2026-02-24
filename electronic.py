@@ -5,7 +5,7 @@ from integrator import *
 
 def lowdin_orthogonalization(S):
     """
-    Compute T = S (S^† S)^(-1/2) as the Lowdin orthogonalisation process
+    Compute T = S (S^T S)^(-1/2) as the Lowdin orthogonalisation process
     """
 
     A = S.conj().T @ S
@@ -183,17 +183,20 @@ def hop_search_bisect(model, dt, q_L, q_R, C_L, coeff_L, Sz_L, Sz_R, tol_tau=1e-
 
 # Todo: enforce a global gauge convention to remove gauge dependency.
 
-def hop_search_direct(model, dt, q_L, q_R, v_L, v_R, ):
+def hop_search_direct(model, dt, q_L, v_L, C_L, Sz_L, Sz_R, coeff_L, tol_tau = 1e-10, tol_sz = 1e-12, max_iter = 500):
     tau_L = 0.0
     tau_R = dt
-    dq = q_R - q_L
     iter = 0
+    active_state = 1 if Sz_L > 0 else 0
+    
     
     while True:
-        F_L = model.F()
+        F_L = model.F(a=active_state, q=q_L)
         tau_M = 0.5 * (tau_L + tau_R)
-        v_M_half = verlet_v(tau_M, v_L, )
-        q_M = q_L + tau_M * (dq/dt) # In full dynamics replace with nuclear propagation
+        v_M_half = verlet_v(tau_M, v_L, F_L)
+        q_M = q_L + tau_M * v_M_half
+        F_M = model.F(a=active_state, q=q_M)
+        v_M = verlet_v(tau_M, v_M_half, F_M)
         C_M, coeff_M = LD_step(model, q_L, q_M, tau_M, C_L, coeff_L)
         Sz_M = sz_from_coeff(coeff_M)
         if Sz_L * Sz_M < 0:
@@ -205,7 +208,16 @@ def hop_search_direct(model, dt, q_L, q_R, v_L, v_R, ):
         
         if (np.abs(tau_R-tau_L) < tol_tau) or (np.abs(Sz_M) < tol_sz):
             break
-
         iter += 1
         if iter > max_iter:
             raise RuntimeError('Bisection search did not converge')
+        
+    print('Hop search finished after', iter, 'iterations')
+    tau_star = tau_M
+    q_star = q_M
+    v_star = v_M
+    C_star, coeff_star = C_M, coeff_M
+    return tau_star, q_star, v_star, C_star, coeff_star
+
+def get_active_state(Sz):
+    return 1 if Sz > 0 else 0

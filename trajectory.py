@@ -15,3 +15,7 @@ class BaseSnapshot:
             return 1
         else:
             return 0
+        
+    @active_state.setter
+    def active_state(self, a):
+        self.active_state = a
