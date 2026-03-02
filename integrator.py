@@ -4,34 +4,37 @@ def verlet_X(dt, q_curr, v_half):
     q_next = q_curr + dt * v_half
     return q_next
 
-def verlet_v(dt, v_curr, F_curr, model):
-    mass = model.mass
+def verlet_v(dt, model, mass, v_curr, q_curr, active_state):
+    F_curr = model.F(a=active_state, q=q_curr)
     v_half = v_curr + 0.5 * dt * F_curr/mass
     return v_half
 
-def surface_hop(Sz_prev, S_next, q_curr, v_curr, model):
-    mass = model.mass
-    hop_exists = False
-    if Sz_prev > 0:
-        V_init = model.V1(q=q_curr)
-        V_fin = model.V0(q=q_curr)
-    elif Sz_prev < 0:
-        V_init = model.V0(q=q_curr)
-        V_fin = model.V1(q=q_curr)
-        
-    mw_mo = np.sqrt(mass) * v_curr
-    d10 = model.d_an(q=q_curr, a=1)
-    p_d_init = np.sign(d10) * mw_mo
-    Ed = 0.5 * p_d_init**2 + V_init
-    if Ed >= V_fin:
-        hop_exists = True
-        p_d_fin = np.sign(p_d_init) * np.sqrt(p_d_init**2 + 2.0 * (V_init - V_fin))
-        mw_mo_fin = mw_mo - np.sign(d10) * (p_d_init - p_d_fin)
-        Sz_reflected = S_next
-    if Ed < V_fin:
-        mw_mo_fin = mw_mo - 2.0 * np.sign(d10) * p_d_init
-        Sz_reflected = -S_next
+def velocity_rescaling(model, snapshot):
+    mass = snapshot.mass
+    active_state = snapshot.active_state
+    v_old = snapshot.velocities
+    q_hop = snapshot.positions
+    d10 = model.d_an(q=q_hop, a=1)
+    adiabatic_energies = [model.V0(q=q_hop), model.V1(q=q_hop)]
+    is_hop = False
     
-    v_rescaled = mw_mo_fin / np.sqrt(mass)
+    V_init = adiabatic_energies[active_state]
+    V_fin = adiabatic_energies[1-active_state]
 
-    return hop_exists, v_rescaled, Sz_reflected
+    mw_p_old = np.sqrt(mass) * v_old
+    mw_nac = d10/np.sqrt(mass)
+
+    mw_p_old_d = np.dot(mw_nac, mw_p_old) * 1/np.abs(mw_nac)
+
+    E_d = 0.5 * mw_p_old_d**2 + V_init
+
+    if E_d >= V_fin:
+        mw_p_new_d = np.sign(mw_p_old_d) * np.sqrt(mw_p_old_d**2 + 2*(V_init-V_fin))
+        mw_p_new = mw_p_old - mw_nac/np.abs(mw_nac) * (mw_p_old_d - mw_p_new_d)
+        is_hop = True
+    else:
+        mw_p_new = mw_p_old - 2 * mw_nac/np.abs(mw_nac) * mw_p_old_d
+        is_hop = False
+
+    v_new = mw_p_new/np.sqrt(mass)
+    return v_new, is_hop

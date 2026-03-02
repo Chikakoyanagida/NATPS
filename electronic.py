@@ -130,6 +130,26 @@ def LD_step(model, q_curr, q_next, dt, C_curr, coeff_curr):
     coeff_next = T_inv @ (U @ coeff_curr)
     return C_next, coeff_next
 
+def local_diabatisation(model, snapshot, q_next, dt):
+    q_curr = snapshot.positions
+    C_curr = snapshot.gauge
+    coeff_curr = snapshot.coefficients
+
+    C_next_raw = model.eigvecs(q=q_next)
+    C_next = align_phases(C_curr, C_next_raw)
+    En = np.diag([model.V0(q=q_curr), model.V1(q=q_curr)])
+    Enp = np.diag([model.V0(q=q_next), model.V1(q=q_next)])
+    Snp = C_curr.conj().T @ C_next
+
+    T = lowdin_orthogonalization(Snp)
+    T_inv = T.conj().T
+    HLD = T @ Enp @ T_inv
+    A = 0.5 * (En + HLD)
+    U = unitary_propagator(A, dt)
+    coeff_next = T_inv @ (U @ coeff_curr)
+
+    return C_next, coeff_next
+
 def hop_search_bisect(model, dt, q_L, q_R, C_L, coeff_L, Sz_L, Sz_R, tol_tau=1e-6, tol_sz=1e-10, max_iter = 500):
     '''
     Use bisection search to find the exact moment when system undergoes a hop.
@@ -219,5 +239,37 @@ def hop_search_direct(model, dt, q_L, v_L, C_L, Sz_L, Sz_R, coeff_L, tol_tau = 1
     C_star, coeff_star = C_M, coeff_M
     return tau_star, q_star, v_star, C_star, coeff_star
 
-def get_active_state(Sz):
-    return 1 if Sz > 0 else 0
+def hop_search(dt, snapshot, model, tol_tau=1e-8, tol_Sz=1e-10, max_iter=500):
+    
+    coeff_curr = snapshot.coefficients
+    mass = snapshot.mass
+    active_state = snapshot.active_state
+    q_curr = snapshot.positions
+    v_curr = snapshot.velocities
+
+    tau_L = 0.0
+    tau_R = dt
+    Sz_curr = sz_from_coeff(coeff_curr)
+    iter = 0
+
+    while True:
+        tau_M = 0.5 * (tau_L + tau_R)
+        v_half = verlet_v(dt=tau_M, model=model, q_curr=q_curr, v_curr=v_curr, active_state=active_state, mass=mass)
+        q_next = verlet_X(dt=tau_M, q_curr=q_curr, v_half=v_half)
+        C_next, coeff_next = local_diabatisation(snapshot=snapshot, model=model, q_next=q_next, dt=tau_M)
+        Sz_next = sz_from_coeff(coeff_next)
+
+        if abs(Sz_next) < tol_Sz or abs(tau_L-tau_R) < tol_tau:
+            break
+
+        if Sz_curr * Sz_next < 0:
+            tau_R = tau_M
+        else:
+            tau_L = tau_M
+        
+        iter += 1
+        if iter > max_iter:
+            raise RuntimeError('Maximum iteration reached')
+    print('Hop search finished after', iter, 'iterations')
+    
+    return tau_M
