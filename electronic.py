@@ -270,6 +270,6 @@ def hop_search(dt, snapshot, model, tol_tau=1e-8, tol_Sz=1e-10, max_iter=500):
         iter += 1
         if iter > max_iter:
             raise RuntimeError('Maximum iteration reached')
-    print('Hop search finished after', iter, 'iterations')
+    print('Hop search finished after', iter, 'iterations. Hop is located at', f'x={q_next}.')
     
     return tau_M

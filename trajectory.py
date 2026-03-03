@@ -1,5 +1,6 @@
 import numpy as np
 from electronic import *
+import copy
 
 class Snapshot:
     def __init__(self, positions, velocities, coefficients, active_state, gauge, mass):
@@ -10,17 +11,11 @@ class Snapshot:
         self.active_state = active_state
         self.mass = mass
     
-    # @property
-    # def active_state(self,):
-    #     Sz = sz_from_coeff(self.coefficients)
-    #     if Sz > 0:
-    #         return 1
-    #     else:
-    #         return 0
-        
-    # @active_state.setter
-    # def active_state(self, a):
-    #     self.active_state = a
+    def reversed(self, ):
+        target = copy.deepcopy(self)
+        target.velocities *= -1.0
+        target.coefficients = np.conjugate(target.coefficients)
+        return target
 
 class Trajectory:
     def __init__(self, states=None):
