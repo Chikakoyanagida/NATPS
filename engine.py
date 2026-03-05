@@ -28,9 +28,11 @@ class MASHEngine:
             if is_hop:
                 print('Hop is allowed, at time', timer)
                 active_state_new = 1 - snapshot_1.active_state
+                snapshot_1.hop = True
             else:
                 print('hop is frustrated, at time', timer)
                 active_state_new = snapshot_1.active_state
+                snapshot_1.hop = False
             
             inter_snapshot = Snapshot(positions=snapshot_1.positions,
                                       velocities=v_new,
@@ -39,6 +41,7 @@ class MASHEngine:
                                       gauge=snapshot_1.gauge,
                                       mass=self.mass,
                                       is_grid=False)
+            
 
             dt_R = self.dt - tau_M
             snapshot_2 = self._unit_step(inter_snapshot, dt=dt_R, is_grid=True)

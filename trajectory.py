@@ -3,7 +3,7 @@ from electronic import *
 import copy
 
 class Snapshot:
-    def __init__(self, positions, velocities, coefficients, active_state, gauge, mass, is_grid):
+    def __init__(self, positions, velocities, coefficients, active_state, gauge, mass, is_grid, hop=None):
         self.positions = positions
         self.velocities = velocities
         self.coefficients = coefficients
@@ -11,6 +11,7 @@ class Snapshot:
         self.active_state = active_state
         self.mass = mass
         self.is_grid = is_grid
+        self.hop = hop
     
     def reversed(self, ):
         target = copy.deepcopy(self)

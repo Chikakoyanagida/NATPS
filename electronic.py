@@ -239,6 +239,7 @@ def hop_search_direct(model, dt, q_L, v_L, C_L, Sz_L, Sz_R, coeff_L, tol_tau = 1
     C_star, coeff_star = C_M, coeff_M
     return tau_star, q_star, v_star, C_star, coeff_star
 
+# This is the one we are actually using now
 def hop_search(dt, snapshot, model, tol_tau=1e-8, tol_Sz=1e-10, max_iter=500):
     
     coeff_curr = snapshot.coefficients
