@@ -17,6 +17,8 @@ def velocity_rescaling(model, snapshot):
     d10 = model.d_an(q=q_hop, a=1)
     adiabatic_energies = [model.V0(q=q_hop), model.V1(q=q_hop)]
     is_hop = False
+    if np.abs(d10) < 1e-14:
+        raise ValueError('Zero NAC but a hop is triggered!')
     
     V_init = adiabatic_energies[active_state]
     V_fin = adiabatic_energies[1-active_state]

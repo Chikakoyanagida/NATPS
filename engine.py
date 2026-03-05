@@ -26,11 +26,11 @@ class MASHEngine:
 
             v_new, is_hop = velocity_rescaling(model=self.model, snapshot=snapshot_1)
             if is_hop:
-                print('Hop is allowed, at time', timer)
+                # print('Hop is allowed, at time', timer)
                 active_state_new = 1 - snapshot_1.active_state
                 snapshot_1.hop = True
             else:
-                print('hop is frustrated, at time', timer)
+                # print('hop is frustrated, at time', timer)
                 active_state_new = snapshot_1.active_state
                 snapshot_1.hop = False
             

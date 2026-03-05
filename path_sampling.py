@@ -30,6 +30,7 @@ class PathSampling:
         self.reject = 0
 
         for i in range(n_tps_iterations):
+            print(f"--- TPS Iteration {i} ---")
             shooting_snap, l_old = selector.select_and_perturb(current_traj)
             engine_fwd = engine(model=model, dt=dt, initial_snapshot=shooting_snap)
             traj_fwd = engine_fwd.propagate_until_basin(max_traj_length, inA, inB)
@@ -81,7 +82,7 @@ class PathSampling:
         production_ensemble = tps_ensemble[burn_in_frames:]
         production_ensemble = [self._remove_off_grid(traj) for traj in production_ensemble]
         
-        transit_times = [len(traj) * dt for traj in production_ensemble]
+        transit_times = [(len(traj)-1) * dt for traj in production_ensemble]
         mean_time = np.mean(transit_times)
         std_time = np.std(transit_times)
 
@@ -129,7 +130,7 @@ class PathSampling:
         burn_in_frames = int(burn_in * len(tps_ensemble))
         production_ensemble = tps_ensemble[burn_in_frames:]
 
-        hop_counts = [sum(1 for snap in traj if snap.is_hop) for traj in production_ensemble]
+        hop_counts = [sum(1 for snap in traj if getattr(snap, 'hop', False) is True) for traj in production_ensemble]
         sum_hops = np.sum(hop_counts)
         mean_hops = np.mean(hop_counts)
         std_hops = np.std(hop_counts)
@@ -139,7 +140,7 @@ class PathSampling:
 
         q_hops = np.array([snap.positions
                            for traj in production_ensemble
-                           for snap in traj if snap.is_hop])
+                           for snap in traj if getattr(snap, 'hop', False) is True])
 
         return mean_hops, std_hops, q_hops
     
