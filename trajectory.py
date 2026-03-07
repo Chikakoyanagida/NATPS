@@ -12,6 +12,7 @@ class Snapshot:
         self.mass = mass
         self.is_grid = is_grid
         self.hop = hop
+        self.shooting = False
     
     def reversed(self, ):
         target = copy.deepcopy(self)

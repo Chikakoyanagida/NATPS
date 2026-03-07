@@ -2,7 +2,6 @@ from analytical import *
 from engine import *
 from selector import *
 from trajectory import *
-from util import *
 import copy
 import numpy as np
 
@@ -32,6 +31,7 @@ class PathSampling:
         for i in range(n_tps_iterations):
             print(f"--- TPS Iteration {i} ---")
             shooting_snap, l_old = selector.select_and_perturb(current_traj)
+            shooting_snap.shooting = True
             engine_fwd = engine(model=model, dt=dt, initial_snapshot=shooting_snap)
             traj_fwd = engine_fwd.propagate_until_basin(max_traj_length, inA, inB)
 
@@ -64,6 +64,7 @@ class PathSampling:
             else:
                 print('Rejected')
                 self.reject += 1
+                # shooting_snap.shooting = False # Not necessary
             
             tps_ensemble.append(current_traj)
         
@@ -89,7 +90,7 @@ class PathSampling:
         print(f"Mean Transition Time: {mean_time:.2f} atomic units")
         print(f"Standard Deviation: {std_time:.2f} atomic units")
 
-        return transit_times, mean_time
+        return transit_times, mean_time, std_time
     
     def efficiency_statistics(self, naive_tps_ensemble, mc_rate, burn_in=0.15):
         burn_in_frames = int(burn_in * len(naive_tps_ensemble))
