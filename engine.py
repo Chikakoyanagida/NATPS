@@ -161,7 +161,8 @@ class MASHEngineIrrev:
                                      coefficients=coeff_next_new,
                                      active_state=active_state_new,
                                      mass=self.mass,
-                                     gauge=snapshot_next.gauge)
+                                     gauge=snapshot_next.gauge,
+                                     is_grid=None)
         
         return snapshot_next
     
@@ -200,4 +201,5 @@ class MASHEngineIrrev:
                             coefficients=coeff_next,
                             active_state=active_state,
                             gauge=C_next,
-                            mass=self.mass)
+                            mass=self.mass,
+                            is_grid=None)
