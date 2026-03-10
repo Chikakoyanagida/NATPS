@@ -1,33 +1,38 @@
 import numpy as np
+from typing import Tuple
+from abc import ABC, abstractmethod
 
 HBAR = 1.0
 
-class DiabaticTwoState1D:
+class DiabaticTwoState1D(ABC):
     """
     Base class for a 1D two-state system defined in a diabatic basis.
 
-    You must implement:
+    Required overrides:
         H(q)     -> 2x2 diabatic Hamiltonian matrix
         dH_dq(q) -> 2x2 derivative of Hamiltonian wrt q
 
-    This class then provides:
-        - adiabatic energies and NACs
-        - forces on adiabatic surfaces
-        - interface required by the MASH integrator
+    Provides:
+        - Adiabatic energies and NACs
+        - Forces on adiabatic surfaces
+        - MASH integrator interface
     """
 
-    def __init__(self, mass=1.0):
+    def __init__(self, mass: float = 1.0) -> None:
         self.mass = float(mass)
 
-    # ---- user must override these two ----
+    @abstractmethod
     def H(self, q: float) -> np.ndarray:
-        raise NotImplementedError
-
+        """2x2 diabatic Hamiltonian at position q."""
+        pass
+    
+    @abstractmethod
     def dH_dq(self, q: float) -> np.ndarray:
-        raise NotImplementedError
-
+        """2x2 derivative dH/dq at position q."""
+        pass
     # ---- internal helper: adiabatic info at q ----
-    def adiabatic_info(self, q: float):
+    def adiabatic_info(self, q: float) -> Tuple[float, float, float, float, float, np.ndarray]:
+        """Compute adiabatic energies, gradients, NAC d10, and eigenvectors at q."""
         H = self.H(q)
         dH = self.dH_dq(q)
 
@@ -51,14 +56,14 @@ class DiabaticTwoState1D:
 
         return V0, V1, dV0_dq, dV1_dq, d10, C
 
-    # ---- API used by the integrator ----
-
     def V0(self, q: float) -> float:
-        V0, V1, _, _, _, _ = self.adiabatic_info(q)
+        """Adiabatic ground state energy V0(q)."""
+        V0, _, _, _, _, _ = self.adiabatic_info(q)
         return V0
 
     def V1(self, q: float) -> float:
-        V0, V1, _, _, _, _ = self.adiabatic_info(q)
+        """Adiabatic excited state energy V1(q)."""
+        _, V1, _, _, _, _ = self.adiabatic_info(q)
         return V1
 
     def V(self, a: int, q: float) -> float:
@@ -71,11 +76,8 @@ class DiabaticTwoState1D:
             raise ValueError("State index a must be 0 or 1.")
 
     def F(self, a: int, q: float) -> float:
-        """
-        Force on adiabatic state a (0 or 1):
-            F_a(q) = -dV_a/dq
-        """
-        V0, V1, dV0_dq, dV1_dq, _, _ = self.adiabatic_info(q)
+        """Adiabatic force F_a(q) = -dV_a/dq on state a (0 or 1)."""
+        _, _, dV0_dq, dV1_dq, _, _ = self.adiabatic_info(q)
         if a == 0:
             return -dV0_dq
         elif a == 1:
@@ -108,27 +110,27 @@ class DiabaticTwoState1D:
         else:
             raise ValueError("State index a must be 0 or 1.")
     
-    def eigvecs(self, q):
+    def eigvecs(self, q: float):
+        """Adiabatic eigenvectors at q (sorted by energy)."""
         _, _, _, _, _, eigvecs = self.adiabatic_info(q)
         return eigvecs
     
 
 class LandauZener(DiabaticTwoState1D):
-    """
-    1D avoided crossing from Landau-Zener model (two linear diabatic surfaces)
-    """
-    def __init__(self, s, vc, mass=1):
+    """Landau-Zener model: two linear diabatic surfaces."""
+
+    def __init__(self, s: float, vc: float, mass: float = 1.0) -> None:
         super().__init__(mass)
         self.s = s
         self.vc = vc
-    
-    def H(self, q):
+
+    def H(self, q: float) -> np.ndarray:
         V11 = 0.0
         V12 = self.vc
         V22 = self.s * q
         return np.array([[V11, V12], [V12, V22]], dtype=float)
-    
-    def dH_dq(self, q):
+
+    def dH_dq(self, q: float) -> np.ndarray:
         dV11 = 0.0
         dV12 = 0.0
         dV22 = self.s
@@ -136,27 +138,25 @@ class LandauZener(DiabaticTwoState1D):
 
 
 class DoubleHarmonic(DiabaticTwoState1D):
-    '''
-    1D avoided crossing from two horizontally displaced simple harmonic oscillators.
-    '''
+    """Two horizontally displaced harmonic oscillators."""
 
-    def __init__(self, k, x0, vc, mass=1):
+    def __init__(self, k: float, x0: float, vc: float, mass: float = 1.0) -> None:
         super().__init__(mass)
         self.k = k
         self.x0 = x0
         self.vc = vc
-    
-    def H(self, q):
-        V11 = 1/2 * self.k * (q-self.x0)**2
+
+    def H(self, q: float) -> np.ndarray:
+        V11 = 0.5 * self.k * (q - self.x0)**2
         V12 = self.vc
-        V22 = 1/2 * self.k * (q+self.x0)**2
+        V22 = 0.5 * self.k * (q + self.x0)**2
         return np.array([[V11, V12], [V12, V22]], dtype=complex)
-    
-    def dH_dq(self, q):
-        dV11 = self.k * (q-self.x0)
-        dV22 = self.k * (q+self.x0)
+
+    def dH_dq(self, q: float) -> np.ndarray:
+        dV11 = self.k * (q - self.x0)
         dV12 = 0.0
-        return np.array([[dV11, dV12], [dV12, dV22]])
+        dV22 = self.k * (q + self.x0)
+        return np.array([[dV11, dV12], [dV12, dV22]], dtype=complex)
 
 
 class SimpleAvoidedCrossing(DiabaticTwoState1D):
@@ -168,7 +168,9 @@ class SimpleAvoidedCrossing(DiabaticTwoState1D):
         H_12(q) =  C exp(-D q^2)
     """
 
-    def __init__(self, A=0.01, B=1.6, C=0.005, D=1.0, mass=1.0):
+    def __init__(
+        self, A: float = 0.01, B: float = 1.6, C: float = 0.005, D: float = 1.0, mass: float = 1.0
+    ) -> None:
         super().__init__(mass=mass)
         self.A = A
         self.B = B
@@ -179,24 +181,21 @@ class SimpleAvoidedCrossing(DiabaticTwoState1D):
         V11 = self.A * (1.0 - np.tanh(self.B * q))
         V22 = -self.A * (1.0 - np.tanh(self.B * q))
         V12 = self.C * np.exp(-self.D * q**2)
-        return np.array([[V11, V12],
-                         [V12, V22]], dtype=float)
+        return np.array([[V11, V12], [V12, V22]], dtype=float)
 
-    def dH_dq(self, q):
-        # Use sech^2 = 1 - tanh^2 to avoid cosh overflow
+    def dH_dq(self, q: float) -> np.ndarray:
         Bq = self.B * q
         tanh_Bq = np.tanh(Bq)
-        sech2 = 1.0 - tanh_Bq**2  # = 1 / cosh^2(Bq) but numerically stable
+        sech2 = 1.0 - tanh_Bq**2  # Stable 1/cosh^2
 
         dV11 = -self.A * self.B * sech2
         dV22 = -dV11
-
         V12 = self.C * np.exp(-self.D * q**2)
         dV12 = -2.0 * self.D * q * V12
 
-        return np.array([[dV11, dV12],
-                        [dV12, dV22]], dtype=float)
+        return np.array([[dV11, dV12], [dV12, dV22]], dtype=float)
     
-def Landau_traj(v, t, t0):
-    q = v * (t-t0)
-    return q
+
+def landau_traj(v: float, t: float, t0: float) -> float:
+    """Landau-Zener classical trajectory: q(t) = v * (t - t0)."""
+    return v * (t - t0)
