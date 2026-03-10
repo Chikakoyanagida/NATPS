@@ -8,12 +8,10 @@ from analytical import DiabaticTwoState1D
 from integrator import (
     verlet_v,
     verlet_X,
-    local_diabatisation,
     velocity_rescaling,
-    hop_search,
 )
 from trajectory import Snapshot, Trajectory
-from electronic import sz_from_coeff
+from electronic import sz_from_coeff, hop_search, local_diabatisation
 
 class MASHEngine:
     """MASH propagation engine with reversible surface hops."""
