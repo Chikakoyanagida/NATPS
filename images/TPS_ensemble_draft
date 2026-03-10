@@ -1,0 +1,29 @@
+To demonstrate that our implementation of MASH with TPS can properly sample non-adiabatic paths, we first fix the off-diagonal coupling V 
+c
+​	
+ =0.2ϵ and the TPS sampling temperature to 12000 K. Under these conditions, after the path generation reaches equilibrium, approximately 35% of the paths involve at least two non-adiabatic transitions (e.g., upward and downward surface hops). The evolution in the path space is illustrated by a path lineage history in Figure \ref{fig:lineage}.
+
+From the lineage history, it is evident that consecutive paths in the ensemble exhibit significant correlation, remaining too dynamically similar to offer independent insights into potential mechanisms and kinetic properties. To assess the extent of this correlation, we track the transit times—the duration spent traversing between basins—as a proxy observable. By calculating the transition time autocorrelation function (Figure \ref{fig:decor12000}), we can determine the effective size of a TPS ensemble containing only statistically independent paths. It can be seen that under the current conditions, the decorrelation length is approximately 9 Monte Carlo (MC) steps. Consequently, for a TPS ensemble of 10000 generated paths, this yields an effective sample size of roughly 1100 statistically independent trajectories. This high ratio of independent paths to total MC steps highlights the efficiency of the sampling algorithm in exploring the non-adiabatic path space.
+
+The transition times of paths in a TPS ensemble convey valuable mechanistic information on their own. As Figure \ref{fig:ttdist12000}a shows, under the aforementioned conditions at 12000 K, the distribution of transition times across the ensemble exhibits a bimodal, right-skewed profile. The pronounced right skew is a fundamental signature of stochastic, thermally activated barrier-crossing dynamics; while there is a strict physical lower bound dictated by the ballistic traversal limit between two basins, there is no upper limit for how long a trajectory might fluctuate before committing to the product state.
+
+Furthermore, the bimodal characteristic arises from an apparent kinetic bifurcation: the ensemble contains two significant pathway classes (adiabatic and non-adiabatic). Adiabatic paths generally spend less time traversing the barrier, whereas their non-adiabatic counterparts often become trapped in the excited state before relaxing and connecting the two ground-state basins.
+
+In contrast, at a reduced temperature of 1000 K (Figure \ref{fig:ttdist12000}b), the kinetic energy of the system is insufficient to sustain upward hops. Consequently, the non-adiabatic pathway is suppressed, and the distribution reverts to a right-skewed, unimodal profile characteristic of a single underlying first-passage time process.
+
+Another important upshot of a TPS-accelerated NAMD simulation is the mechanistic insight gained regarding non-adiabatic transitions. In our 1D model, the most prominent feature is the distribution of hopping geometries. As shown in Figure \ref{fig:hopdist12000}, the distribution of hopping positions is symmetric with respect to the crossing seam located at q=0, which corresponds to the point where the energy gap is minimized and the non-adiabatic coupling is strongest.
+
+While finite sampling introduces minor statistical noise that prevents perfect symmetry in the raw histogram, the convergence of the mean hopping position to the theoretical crossing seam confirms that the underlying distribution is indeed symmetric.
+
+\subsection{Efficiency Statistics}
+While TPS is not strictly required to obtain path properties such as transition time distributions and hopping geometries, its superiority lies in its algorithmic efficiency at sampling rare reactive events compared to brute-force molecular dynamics. To quantify this computational advantage, we define the efficiency ratio (ER) as:
+
+ER=2 
+n(transition paths)
+n(total steps generated)
+​	
+ 
+The factor of 2 in this expression accounts for the bidirectional nature of a standard TPS shooting move, which requires integrating both a forward and a backward trajectory segment to generate a single trial path. Table \ref{tab:ERratio} compares the ER obtained from brute-force molecular dynamics, non-adiabatic forward-flux sampling, and our NATPS implementation across different effective barrier heights E 
+a
+​	
+ . These barrier heights are modulated by varying the ensemble temperature (where a lower temperature corresponds to a higher effective barrier). Compared to brute-force dynamics and flux-based sampling methods, transition path sampling demonstrates an orders-of-magnitude acceleration in finding valid transition paths, even under regimes of substantial activation barriers.

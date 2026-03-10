@@ -15,6 +15,7 @@ class Snapshot:
         gauge: np.ndarray,
         mass: float,
         is_grid: bool,
+        hop=None
     ):
         self.positions = positions
         self.velocities = velocities
@@ -23,6 +24,8 @@ class Snapshot:
         self.active_state = active_state
         self.mass = mass
         self.is_grid = is_grid
+        self.hop = hop
+        self.shooting = False
     
     def reversed(self) -> Snapshot:
         """Return a reversed snapshot with negated velocities and conjugated coefficients."""

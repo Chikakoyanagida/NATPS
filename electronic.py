@@ -476,11 +476,11 @@ def hop_search(
         iteration += 1
         if iteration > max_iter:
             raise RuntimeError("Maximum iteration reached")
-    print(
-        "Hop search finished after",
-        iteration,
-        "iterations. Hop is located at",
-        f"x={q_next}.",
-    )
+    #print(
+    #    "Hop search finished after",
+    #    iteration,
+    #    "iterations. Hop is located at",
+    #    f"x={q_next}.",
+    #)
 
     return tau_M
