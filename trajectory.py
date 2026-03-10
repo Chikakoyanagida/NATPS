@@ -1,9 +1,21 @@
 import numpy as np
-from electronic import *
 import copy
+from typing import List, Optional, Union
+
 
 class Snapshot:
-    def __init__(self, positions, velocities, coefficients, active_state, gauge, mass, is_grid):
+    """Represents a single snapshot in a trajectory with positions, velocities, etc."""
+    
+    def __init__(
+        self,
+        positions: np.ndarray,
+        velocities: np.ndarray,
+        coefficients: np.ndarray,
+        active_state: int,
+        gauge: np.ndarray,
+        mass: float,
+        is_grid: bool,
+    ):
         self.positions = positions
         self.velocities = velocities
         self.coefficients = coefficients
@@ -12,40 +24,39 @@ class Snapshot:
         self.mass = mass
         self.is_grid = is_grid
     
-    def reversed(self, ):
-        target = copy.deepcopy(self)
-        target.velocities *= -1.0
-        target.coefficients = np.conjugate(target.coefficients)
-        return target
+    def reversed(self) -> Snapshot:
+        """Return a reversed snapshot with negated velocities and conjugated coefficients."""
+        reverse = copy.deepcopy(self)
+        reverse.velocities *= -1.0
+        reverse.coefficients = np.conjugate(reverse.coefficients)
+        return reverse
     
 
 class Trajectory:
-    def __init__(self, states=None):
-        """
-        states : iterable of trajectory states (positions, velocities, etc.)
-        """
-        if states is None:
-            self._states = []
+    """Manages a sequence of Snapshot states."""
+
+    def __init__(self, snaps: Optional[List[Snapshot]] = None):
+        """Initialize with optional iterable of Snapshot states."""
+        if snaps is None:
+            self._snaps: List[Snapshot] = []
         else:
-            self._states = list(states)
+            self._snaps = list(snaps)
 
-    def __len__(self):
-        """
-        Enables len(traj)
-        """
-        return len(self._states)
+    def __len__(self) -> int:
+        """Return the number of snapshots (enables len(traj))."""
+        return len(self._snaps)
 
-    def __getitem__(self, index):
-        """
-        Enables traj[i]
-        """
-        return self._states[index]
+    def __getitem__(self, index: Union[int, slice]) -> Union[Snapshot, "Trajectory"]:
+        """Access state by index or slice (enables traj[i])."""
+        snap_slice = self._snaps[index]
+        if isinstance(snap_slice, Snapshot):
+            return snap_slice
+        return Trajectory(snap_slice)
 
-    def append(self, state):
-        """
-        Add a new state to trajectory
-        """
-        self._states.append(state)
+    def append(self, snap: Snapshot) -> None:
+        """Add a new Snapshot to the trajectory."""
+        self._snaps.append(snap)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """String representation showing trajectory length."""
         return f"Trajectory(length={len(self)})"
