@@ -27,7 +27,7 @@ class Snapshot:
         self.hop = hop
         self.shooting = False
     
-    def reversed(self) -> Snapshot:
+    def reversed(self):
         """Return a reversed snapshot with negated velocities and conjugated coefficients."""
         reverse = copy.deepcopy(self)
         reverse.velocities *= -1.0

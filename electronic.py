@@ -70,7 +70,7 @@ def align_phases_real(c_prev: np.ndarray, c_curr: np.ndarray) -> np.ndarray:
     c_aligned = c_curr.copy()
 
     for i in range(c_prev.shape[1]):
-        overlap = np.vdot(C_prev[:, i], c_curr[:, i])
+        overlap = np.vdot(c_prev[:, i], c_curr[:, i])
         if np.real(overlap) < 0.0:
             c_aligned[:, i] *= -1.0
 

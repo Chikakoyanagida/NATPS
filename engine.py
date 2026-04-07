@@ -340,11 +340,12 @@ class MASHEngineIrrev:
                 snapshot=snapshot_next,
             )
             if is_hop:
-                print("Hop is allowed")
+                # print("Hop is allowed")
                 active_state_new = 1 - snapshot_next.active_state
                 coeff_next_new = snapshot_next.coefficients
+                snapshot_next.hop = True
             else:
-                print("Hop is frustrated")
+                # print("Hop is frustrated")
                 active_state_new = snapshot_next.active_state
                 coeff_next_new = np.array(
                     [
@@ -353,6 +354,7 @@ class MASHEngineIrrev:
                     ],
                     dtype=complex,
                 )
+                snapshot_next.hop = False
 
             snapshot_next = Snapshot(
                 positions=snapshot_next.positions,
@@ -362,6 +364,7 @@ class MASHEngineIrrev:
                 mass=self.mass,
                 gauge=snapshot_next.gauge,
                 is_grid=snapshot_next.is_grid,
+                hop=snapshot_next.hop
             )
 
         return snapshot_next
