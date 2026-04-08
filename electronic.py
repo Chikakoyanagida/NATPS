@@ -4,6 +4,7 @@ from typing import List, Tuple
 from integrator import verlet_v, verlet_X  
 from analytical import DiabaticTwoState1D
 from trajectory import Snapshot
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 
 def lowdin_orthogonalization(S: np.ndarray) -> np.ndarray:
@@ -89,12 +90,12 @@ def align_phases(
     multiply C_curr_i by ov* / |ov| so that the new overlap is real and positive.
 
     Args:
-        C_prev: Previous eigenvector matrix, shape (n, m).
-        C_curr: Current eigenvector matrix, shape (n, m).
+        c_prev: Previous eigenvector matrix, shape (n, m).
+        c_curr: Current eigenvector matrix, shape (n, m).
         eps: Threshold below which overlaps are considered zero.
 
     Returns:
-        Phase-aligned eigenvector matrix with same shape as C_curr.
+        Phase-aligned eigenvector matrix with same shape as c_curr.
     """
     c_aligned = c_curr.copy()
     for i in range(c_prev.shape[1]):
@@ -220,9 +221,9 @@ def LD_step(
 
 
 def local_diabatisation(
-    model: DiabaticTwoState1D,
+    model,
     snapshot: Snapshot,
-    q_next: float,
+    q_next: np.ndarray,
     dt: float,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -263,7 +264,7 @@ def local_diabatisation(
 
 
 def hop_search_bisect(
-    model: DiabaticTwoState1D,
+    model,
     dt: float,
     q_L: float,
     q_R: float,
@@ -331,88 +332,104 @@ def hop_search_bisect(
 
     return tau_star, q_star, C_star, coeff_star
 
-# Todo: enforce a global gauge convention to remove gauge dependency.
+
+import numpy as np
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 def hop_search_direct(
-    model: DiabaticTwoState1D,
     dt: float,
-    q_L: float,
-    v_L: float,
-    C_L: np.ndarray,
-    Sz_L: float,
-    Sz_R: float,
-    coeff_L: np.ndarray,
-    tol_tau: float = 1e-10,
-    tol_sz: float = 1e-12,
-    max_iter: int = 500,
-) -> Tuple[float, float, float, np.ndarray, np.ndarray]:
+    snapshot, 
+    model,
+    tol_Sz: float = 1e-4, # Note: The paper uses a looser 1e-4 tolerance here
+    max_iter: int = 50,
+) -> float:
     """
-    Direct hop search with Verlet nuclear propagation and Sz sign change.
-
-    Args:
-        model: Model Hamiltonian.
-        dt: Original time step.
-        q_L: Initial nuclear position.
-        v_L: Initial nuclear velocity.
-        C_L: Initial adiabatic basis at q_L, shape (2, 2).
-        Sz_L: Sz at left endpoint.
-        Sz_R: Sz at right endpoint.
-        coeff_L: Initial coefficients at q_L, shape (2,).
-        tol_tau: Tolerance on hop time.
-        tol_sz: Tolerance on Sz at the hop.
-        max_iter: Maximum number of iterations.
-
-    Returns:
-        Tuple (tau_star, q_star, v_star, C_star, coeff_star):
-            tau_star: Estimated hop time.
-            q_star: Nuclear position at hop.
-            v_star: Nuclear velocity at hop.
-            C_star: Adiabatic basis at hop.
-            coeff_star: Coefficients at hop.
+    Hop search using internal Verlet propagation and local diabatization.
+    Performs linear then spline interpolation to find the exact time of hopping.
     """
-    tau_L = 0.0
-    tau_R = dt
-    iteration = 0
-    active_state = 1 if Sz_L > 0.0 else 0
+    coeff_curr = snapshot.coefficients
+    mass = snapshot.mass
+    active_state = snapshot.active_state
+    q_curr = snapshot.positions
+    v_curr = snapshot.velocities
 
-    while True:
-        F_L = model.F(a=active_state, q=q_L)
-        tau_M = 0.5 * (tau_L + tau_R)
+    # 1. Point 1: t = 0
+    Sz_curr = sz_from_coeff(coeff_curr)
 
-        v_M_half = verlet_v(tau_M, v_L, F_L)
-        q_M = q_L + tau_M * v_M_half
-        F_M = model.F(a=active_state, q=q_M)
-        v_M = verlet_v(tau_M, v_M_half, F_M)
+    # 2. Point 2: t = dt
+    v_half_dt = verlet_v(dt=dt, model=model, mass=mass, v_curr=v_curr, q_curr=q_curr, active_state=active_state)
+    q_next_dt = verlet_X(dt=dt, q_curr=q_curr, v_half=v_half_dt)
+    _, coeff_next_dt = local_diabatisation(snapshot=snapshot, model=model, q_next=q_next_dt, dt=dt)
+    
+    Sz_dt = sz_from_coeff(coeff_next_dt)
 
-        C_M, coeff_M = LD_step(model, q_L, q_M, tau_M, C_L, coeff_L)
-        Sz_M = sz_from_coeff(coeff_M)
+    # 3. First Guess: Linear Interpolation
+    tau_M = - dt * Sz_curr / (Sz_dt - Sz_curr)
 
-        if Sz_L * Sz_M < 0.0:
-            tau_R = tau_M
-            Sz_R = Sz_M
-        elif Sz_M * Sz_R < 0.0:
-            tau_L = tau_M
-            Sz_L = Sz_M
+    # History trackers for the spline
+    t_history = [0.0, dt]
+    Sz_history = [Sz_curr, Sz_dt]
 
-        if (np.abs(tau_R - tau_L) < tol_tau) or (np.abs(Sz_M) < tol_sz):
-            break
+    iteration = 1
+    
+    # Iteration loop for Spline Refinement
+    while iteration <= max_iter:
+        
+        # Evaluate dynamics at the current guess (tau_M)
+        v_half = verlet_v(dt=tau_M, model=model, mass=mass, v_curr=v_curr, q_curr=q_curr, active_state=active_state)
+        q_next = verlet_X(dt=tau_M, q_curr=q_curr, v_half=v_half)
+        _, coeff_next = local_diabatisation(snapshot=snapshot, model=model, q_next=q_next, dt=tau_M)
+        
+        Sz_next = sz_from_coeff(coeff_next)
+        
+        # Add the new data point to history
+        t_history.append(tau_M)
+        Sz_history.append(Sz_next)
+
+        # Check for convergence
+        if np.abs(Sz_next) <= tol_Sz:
+            # print(f"Converged in {iteration} iterations at tau={tau_M}")
+            return tau_M
+
+        # --- The Spline Interpolation Step ---
+        
+        # SciPy requires the x-values (time) to be strictly increasing
+        sorted_indices = np.argsort(t_history)
+        t_sorted = np.array(t_history)[sorted_indices]
+        Sz_sorted = np.array(Sz_history)[sorted_indices]
+        
+        # The paper uses up to third-order splines. 
+        # k=1 (linear for 2 pts), k=2 (quadratic for 3 pts), k=3 (cubic for 4+ pts)
+        k_degree = min(3, len(t_sorted) - 1)
+        
+        spline = InterpolatedUnivariateSpline(t_sorted, Sz_sorted, k=k_degree)
+        roots = spline.roots()
+        
+        # Filter roots to ensure we don't accidentally pick one outside our timestep
+        valid_roots = [r for r in roots if 0.0 <= r <= dt]
+        
+        if valid_roots:
+            # Pick the root closest to our last guess
+            tau_M = min(valid_roots, key=lambda r: abs(r - t_history[-1]))
+        else:
+            # Fallback: If the spline overshoots and has no root in the interval,
+            # revert to a safe secant step using the two points closest to Sz = 0.
+            # (This is a safety net; the spline usually behaves perfectly).
+            idx_closest = np.argsort(np.abs(Sz_sorted))[:2]
+            t1, t2 = t_sorted[idx_closest]
+            s1, s2 = Sz_sorted[idx_closest]
+            tau_M = t1 - s1 * (t2 - t1) / (s2 - s1)
 
         iteration += 1
-        if iteration > max_iter:
-            raise RuntimeError("Bisection search did not converge")
 
-    print("Hop search finished after", iteration, "iterations")
-    tau_star = tau_M
-    q_star = q_M
-    v_star = v_M
-    C_star, coeff_star = C_M, coeff_M
-    return tau_star, q_star, v_star, C_star, coeff_star
+    raise RuntimeError(f"Hop search failed to converge within {max_iter} iterations.")
 
 
+# This is the actual search algorithm we are using right now
 def hop_search(
     dt: float,
     snapshot: Snapshot,
-    model: DiabaticTwoState1D,
+    model,
     tol_tau: float = 1e-8,
     tol_Sz: float = 1e-10,
     max_iter: int = 500,

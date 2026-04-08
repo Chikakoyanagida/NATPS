@@ -18,7 +18,7 @@ class MASHEngine:
 
     def __init__(
         self,
-        model: DiabaticTwoState1D,
+        model,
         dt: float,
         initial_snapshot: Snapshot,
     ) -> None:
@@ -134,8 +134,8 @@ class MASHEngine:
     def propagate_until_basin(
         self,
         max_steps: int,
-        stateA: Callable[[float, int], bool],
-        stateB: Callable[[float, int], bool],
+        stateA: Callable[[np.ndarray, int], bool],
+        stateB: Callable[[np.ndarray, int], bool],
     ) -> Trajectory:
         """
         Propagate until entering either of two basins or max_steps is reached.
@@ -178,8 +178,8 @@ class MASHEngine:
     def propagate_until_X(
         self,
         max_steps: int,
-        stateA: Callable[[float, int], bool],
-        stateB: Callable[[float, int], bool],
+        stateA: Callable[[np.ndarray, int], bool],
+        stateB: Callable[[np.ndarray, int], bool],
     ) -> Trajectory:
         """
         Propagate until the trajectory reaches the opposite basin.
@@ -299,7 +299,7 @@ class MASHEngineIrrev:
 
     def __init__(
         self,
-        model: DiabaticTwoState1D,
+        model,
         dt: float,
         initial_snapshot: Snapshot,
     ) -> None:

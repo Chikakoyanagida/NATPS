@@ -13,7 +13,7 @@ def verlet_X(
 
 def verlet_v(
     dt: float,
-    model: DiabaticTwoState1D,
+    model,
     mass: float,
     v_curr: np.ndarray,
     q_curr: np.ndarray,
@@ -25,7 +25,7 @@ def verlet_v(
 
 
 def velocity_rescaling(
-    model: DiabaticTwoState1D, snapshot: Snapshot
+    model, snapshot: Snapshot
 ) -> Tuple[np.ndarray, bool]:
     """Surface hopping velocity rescaling with momentum adjustment."""
     mass = snapshot.mass
@@ -36,7 +36,7 @@ def velocity_rescaling(
     d10 = model.d_an(q=q_hop, a=1)
     adiabatic_energies = [model.V0(q=q_hop), model.V1(q=q_hop)]
     is_hop = False
-    if np.abs(d10) < 1e-14:
+    if np.linalg.norm(d10) < 1e-14:
         raise ValueError('Zero NAC but a hop is triggered!')
     
     V_init = adiabatic_energies[active_state]
@@ -45,7 +45,7 @@ def velocity_rescaling(
     mw_p_old = np.sqrt(mass) * v_old
     mw_nac = d10 / np.sqrt(mass)
 
-    mw_p_old_d = np.dot(mw_nac, mw_p_old) / np.abs(mw_nac)
+    mw_p_old_d = np.dot(mw_nac, mw_p_old) / np.linalg.norm(mw_nac)
     E_d = 0.5 * mw_p_old_d**2 + V_init
 
     if E_d >= V_fin:
@@ -53,10 +53,10 @@ def velocity_rescaling(
             max(0.0, mw_p_old_d**2 + 2 * (V_init - V_fin))
         )
         delta_d = mw_p_old_d - mw_p_new_d
-        mw_p_new = mw_p_old - (mw_nac / np.abs(mw_nac)) * delta_d
+        mw_p_new = mw_p_old - (mw_nac / np.linalg.norm(mw_nac)) * delta_d
         is_hop = True
     else:
-        mw_p_new = mw_p_old - 2 * (mw_nac / np.abs(mw_nac)) * mw_p_old_d
+        mw_p_new = mw_p_old - 2 * (mw_nac / np.linalg.norm(mw_nac)) * mw_p_old_d
         is_hop = False
 
     v_new = mw_p_new / np.sqrt(mass)
