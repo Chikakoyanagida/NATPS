@@ -135,15 +135,25 @@ class PathSampling:
         sum_hops = np.sum(hop_counts)
         mean_hops = np.mean(hop_counts)
         std_hops = np.std(hop_counts)
-        print('total number of hops:', sum_hops)
-        print(f"Mean Number of Hops: {mean_hops:.3f}")
-        print(f"Standard Deviation of Hops: {std_hops:.3f}")
-
         q_hops = np.array([snap.positions
                            for traj in production_ensemble
                            for snap in traj if getattr(snap, 'hop', False) is True])
+        angle_hops = None
+        # print('total number of hops:', sum_hops)
+        # print(f"Mean Number of Hops: {mean_hops:.3f}")
+        # print(f"Standard Deviation of Hops: {std_hops:.3f}")
 
-        return mean_hops, std_hops, q_hops
+        coeff_hops = np.array([snap.coefficients
+                               for traj in production_ensemble
+                               for snap in traj if getattr(snap, 'hop', False) is True])
+        if len(coeff_hops) > 0:
+            c0 = coeff_hops[:, 0]
+            c1 = coeff_hops[:, 1]
+            sx = 2 * np.real(np.conj(c1) * c0)
+            sy = 2 * np.imag(np.conj(c1) * c0)
+            angle_hops = np.arctan2(sy, sx)
+
+        return mean_hops, std_hops, q_hops, angle_hops
     
     @staticmethod
     def _remove_off_grid(traj):

@@ -1,7 +1,7 @@
 import numpy as np
 import copy
 
-from typing import Callable, Iterable, Tuple
+from typing import Callable, Iterable, Tuple, Optional
 
 from electronic import *
 from trajectory import Snapshot
@@ -21,6 +21,8 @@ class UniformShootingSelector:
         mass: float,
         stateA_func: Callable[[float, int], bool],
         stateB_func: Callable[[float, int], bool],
+        seed: Optional[int] = None,
+        rng: Optional[np.random.Generator] = None,
         alpha: float = 0.5,
     ) -> None:
         """
@@ -42,6 +44,11 @@ class UniformShootingSelector:
         self.alpha = alpha
         self.inA = stateA_func
         self.inB = stateB_func
+
+        if rng is not None:
+            self.rng = rng
+        else:
+            self.rng = np.random.default_rng(seed)
 
     def _is_eligible(self, snap: Snapshot) -> bool:
         """Return True if snapshot is on the grid and outside both basins A and B."""
@@ -82,11 +89,11 @@ class UniformShootingSelector:
         if l_old <= 0:
             raise ValueError("Trajectory too short to shoot after padding!")
 
-        shooting_index = np.random.randint(0, l_old)
+        shooting_index = self.rng.integers(0, l_old)
         shooting_snapshot = copy.deepcopy(eligible_snaps[shooting_index])
 
         v_old = shooting_snapshot.velocities
-        v_mb = np.random.normal(
+        v_mb = self.rng.normal(
             loc=0.0,
             scale=np.sqrt(self.kbT / self.mass),
         )
@@ -95,6 +102,11 @@ class UniformShootingSelector:
         shooting_snapshot.velocities = v_new
 
         return shooting_snapshot, l_old
+    
+    def select_and_perturb_EC(
+            
+    ):
+        pass
 
     def check_acceptance(
         self,
@@ -126,5 +138,5 @@ class UniformShootingSelector:
             return False
 
         P_acc = min(1.0, l_old / l_new)
-        rand_val = np.random.uniform(0.0, 1.0)
+        rand_val = self.rng.uniform(0.0, 1.0)
         return bool(rand_val < P_acc)

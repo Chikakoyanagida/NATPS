@@ -367,3 +367,96 @@ class DoubleHarmonic3D(DiabaticTwoState3D):
 
         dH = np.array([dHx, dHy, dHz], dtype=complex)
         return dH
+
+class LiftedGS3D(DiabaticTwoState3D):
+    """
+    Two harmonic oscillators in 3D that has vertically displaced x degree of freedom.
+    """
+    def __init__(self, k: float, x0: float, vc: float, disp: float, mass: float = 1.0) -> None:
+        super().__init__(mass)
+        self.k = k
+        self.x0 = x0
+        self.vc = vc
+        self.disp = disp
+
+    def H(self, q: np.ndarray) -> np.ndarray:
+        qx = q[0]
+        qy = q[1]
+        qz = q[2]
+        V11 = 0.5 * self.k * (qx - self.x0)**2 + self.disp + 1.0 * qy ** 2 + 1.0 * qz ** 2 # control the vertical displacement of the right parabola
+        V12 = self.vc
+        V22 = 0.5 * self.k * (qx + self.x0)**2 + 1.0 * qy ** 2 + 1.0 * qz ** 2
+        return np.array([[V11, V12], [V12, V22]], dtype=complex)
+
+    def dH_dq(self, q: np.ndarray) -> np.ndarray:
+        qx = q[0]
+        qy = q[1]
+        qz = q[2]
+        dV11x = self.k * (qx - self.x0)
+        dV11y = 2.0 * qy
+        dV11z = 2.0 * qz
+        dV12 = 0.0
+        dV22x = self.k * (qx + self.x0)
+        dV22y = 2.0 * qy
+        dV22z = 2.0 * qz
+        
+        dHx = np.array([[dV11x, dV12], [dV12, dV22x]])
+        dHy = np.array([[dV11y, dV12], [dV12, dV22y]])
+        dHz = np.array([[dV11z, dV12], [dV12, dV22z]])
+
+        dH = np.array([dHx, dHy, dHz], dtype=complex)
+        return dH
+    
+
+class MetastableExcited3D(DiabaticTwoState3D):
+    '''
+    Analytical model to simulate a metastable state in the upper state instead of the lower (ground) state.
+    The ground state is a symmetric double well potential.
+    '''
+    def __init__(self, xmin_1, xmin_2, xbar, K, disp, A, xgs, vc, mass = 1):
+        super().__init__(mass)
+        self.xmin_1 = xmin_1
+        self.xmin_2 = xmin_2
+        self.xbar = xbar
+        self.K = K
+        self.disp = disp
+        self.A = A
+        self.xgs = xgs
+        self.vc = vc
+        
+    
+    def H(self, q: np.ndarray) -> np.ndarray:
+        S2 = self.xmin_1 + self.xbar + self.xmin_2
+        S1 = self.xmin_1 * self.xbar + self.xmin_1 * self.xmin_2 + self.xbar * self.xmin_2
+        P = self.xmin_1 * self.xmin_2 * self.xbar
+        qx = q[0]
+        qy = q[1]
+        qz = q[2]
+        
+        V11 = self.A * (qx ** 2 - self.xgs ** 2) ** 2 + qy ** 2 + qz ** 2
+        V22 = self.K * (0.25 * qx ** 4 - S2/3 * qx ** 3 + 0.5 * S1 * qx ** 2 + P * qx) + self.disp + qy ** 2 + qz ** 2
+        V12 = self.vc
+
+        return np.array([[V11, V12], [V12, V22]], dtype=complex)
+    
+    def dH_dq(self, q):
+        qx = q[0]
+        qy = q[1]
+        qz = q[2]
+
+        dV11x = 4.0 * self.A * qx * (qx ** 2 - self.xgs ** 2)
+        dV22x = self.K * (qx - self.xmin_1) * (qx - self.xmin_2) * (qx - self.xbar)
+        dV11y = 2.0 * qy
+        dV22y = 2.0 * qy
+        dV11z = 2.0 * qz
+        dV22z = 2.0 * qz
+        dV12 = 0.0
+
+        dHx = np.ndarray([[dV11x, dV12], [dV12, dV22x]])
+        dHy = np.ndarray([[dV11y, dV12], [dV12, dV22y]])
+        dHz = np.ndarray([[dV11z, dV12], [dV12, dV22z]])
+
+        dH = np.array([dHx, dHy, dHz], dtype=complex)
+        return dH
+
+
